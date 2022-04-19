@@ -4,7 +4,7 @@ Created on 2022-01-12
 @author: wf, ms
 '''
 from tests.basetest import Basetest
-from ERDiagram.ERDiagram import ERDiagram
+from ERDiagram.ER import ER
 from ERDiagram.NodeType import NodeType
 
 class TestGraphER(Basetest):
@@ -35,7 +35,7 @@ class TestGraphER(Basetest):
     def testAddNode(self):
         debug=self.debug
         #debug=True
-        g = ERDiagram()
+        g = ER()
         g.add_node(self.nodeLabel)
         
         # check one node added
@@ -55,14 +55,14 @@ class TestGraphER(Basetest):
     def testAddNodeExists(self):
         debug=self.debug
         #debug=True
-        g = ERDiagram()
+        g = ER()
 
         self.assertFalse(g.has_node(self.nodeLabel))
         g.add_node(self.nodeLabel)
         self.assertTrue(g.has_node(self.nodeLabel))
 
     def testAddNodeWeak(self):
-        g = ERDiagram()
+        g = ER()
         g.add_node(self.nodeLabel, isWeak=True)
         added_node = g.get_node(self.nodeLabel)
         self.assertEqual( self.nodeLabel, added_node["label"] )
@@ -71,7 +71,7 @@ class TestGraphER(Basetest):
         self.assertEqual( 1, g.get_node_count() )
   
     def testAddNodeMultiple(self):
-        g = ERDiagram()
+        g = ER()
         g.add_node(self.nodeLabel, isMultiple=True)
         added_node = g.get_node(self.nodeLabel)
         self.assertTrue( added_node["isMultiple"] )
@@ -79,7 +79,7 @@ class TestGraphER(Basetest):
         self.assertEqual( 1, g.get_node_count() )      
 
     def testAddAttribute(self):
-        g = ERDiagram()
+        g = ER()
         g.add_node(self.nodeLabel)
         g.add_attribute(self.nodeLabel, self.attributeLabel)
         self.assertEqual( 2, g.get_node_count() )
@@ -88,14 +88,14 @@ class TestGraphER(Basetest):
         self.assertTrue(g.has_node(self.attributeLabel_full))
  
     def testAddAttributeUnknownNode(self):
-        g = ERDiagram()
+        g = ER()
         g.add_attribute(self.nodeLabel, self.attributeLabel)
         self.assertEqual( 2, g.get_node_count() )
         self.assertFalse(g.has_node(self.attributeLabel))
         self.assertTrue(g.has_node(self.attributeLabel_full))  
 
     def testAddAttributeCheckParameters(self):
-        g = ERDiagram()
+        g = ER()
         g.add_node(self.nodeLabel)
         g.add_attribute(self.nodeLabel, self.attributeLabel, isPK=True, isMultiple=True, isWeak=True)
         self.assertEqual( 2, g.get_node_count() )
@@ -114,7 +114,7 @@ class TestGraphER(Basetest):
         self.assertEqual( True, added_attr["isMultiple"] )
 
     def testAddAttributeComposedOf(self):
-        g = ERDiagram()
+        g = ER()
         g.add_node(self.nodeLabel)
         g.add_attribute(self.nodeLabel, self.attributeLabel, composedOf=[self.compose1, self.compose2])
         
@@ -128,7 +128,7 @@ class TestGraphER(Basetest):
         self.assertTrue( g.has_node(f"{self.attributeLabel_full}.{self.compose2}") )
 
     def testAddRelation(self):
-        g = ERDiagram()
+        g = ER()
         g.add_relation(self.nodeLabel, self.relationLabel, self.otherNodeLabel, self.fromEdgeLabel, self.toEdgeLabel)
 
         added_rel = g.get_rel(self.relationLabel_full)
@@ -142,7 +142,7 @@ class TestGraphER(Basetest):
         self.assertEqual(self.toEdgeLabel, added_rel["toEdgeLabel"])
 
     def testAddIsA(self):
-        g = ERDiagram()
+        g = ER()
         g.add_is_a(self.nodeLabel, self.otherNodeLabel, self.superLabel, self.subLabel, isDisjunct = True)
         added_isA = g.get_isA(self.isARelationLabel)
         self.assertTrue(g.has_node(self.isARelationLabel))
@@ -158,7 +158,7 @@ class TestGraphER(Basetest):
 
 
     def testAddIsAComposed(self):
-        g = ERDiagram()
+        g = ER()
         g.add_is_a(self.nodeLabel, [self.compose1, self.compose2], self.superLabel, self.subLabel, isDisjunct = True)
         added_isA = g.get_isA(self.isAComposedRelationLabel)
         self.assertTrue(g.has_node(self.isAComposedRelationLabel))
@@ -173,7 +173,7 @@ class TestGraphER(Basetest):
         self.assertEqual(str(self.composedList), added_isA["subClasses"]) # graph translates params to string
 
     def testAddTernaryRelation(self):
-        g = ERDiagram()
+        g = ER()
 
         g.add_relation("Bier", "trinkt ", "Person", "1", "n")
         g.add_relation("Bier", "trinkt ", "Ort", "1", "m")
@@ -186,7 +186,7 @@ class TestGraphER(Basetest):
             print(g.asGraphvizPlaygroundUrl())
 
     def testGraphML(self):
-        g = ERDiagram()
+        g = ER()
 
         g.add_node(self.nodeLabel)
         g.add_attribute(self.nodeLabel, self.attributeLabel, isPK=True, isMultiple=True, isWeak=True, composedOf=["Test1", "Test2"])
@@ -200,7 +200,7 @@ class TestGraphER(Basetest):
 
         debug=self.debug
         #debug=True
-        g = ERDiagram()
+        g = ER()
         g.add_node('Hersteller')
         g.add_attribute('Hersteller', 'Name', isPK = True)
         g.add_attribute('Hersteller', 'Sitz')
@@ -228,7 +228,7 @@ class TestGraphER(Basetest):
     def testGetDFSTree(self):
         debug=self.debug
         #debug=True
-        g = ERDiagram()
+        g = ER()
         g.add_node('Hersteller')
         g.add_attribute('Hersteller', 'Name', isPK = True)
         g.add_attribute('Hersteller', 'Sitz')

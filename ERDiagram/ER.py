@@ -5,7 +5,7 @@ import networkx as nx
 from networkx.readwrite import json_graph
 from ERDiagram.NodeType import NodeType
 
-class ERDiagram:
+class ER:
     '''
         Entity Relationship Diagram Wrapper for graphviz.
         Michal Slupczynski RWTH DBIS 2021-2022

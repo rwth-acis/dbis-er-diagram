@@ -25,7 +25,7 @@ setup(
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9'
     ],
-    #packages=["dbis-er-diagram", "assets"],
+    packages=["ERDiagram"],
     include_package_data=True,
     install_requires=requirements
 )
