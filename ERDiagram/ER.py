@@ -3,7 +3,7 @@ from IPython.display import display
 from urllib.parse import quote
 import networkx as nx
 from networkx.readwrite import json_graph
-from ERDiagram.NodeType import NodeType
+from erdiagram.NodeType import NodeType
 
 class ER:
     '''

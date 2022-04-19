@@ -4,8 +4,8 @@ Created on 2022-01-12
 @author: wf, ms
 '''
 from tests.basetest import Basetest
-from ERDiagram.ER import ER
-from ERDiagram.NodeType import NodeType
+from erdiagram.ER import ER
+from erdiagram.NodeType import NodeType
 
 class TestGraphER(Basetest):
     '''
