@@ -6,19 +6,23 @@ Created on 2022-01-12
 from tests.basetest import Basetest
 from erdiagram.ER import ER
 from erdiagram.NodeType import NodeType
-
+import json
 class TestGraphER(Basetest):
     '''
       test graph handling for ER Diagrams
     '''
 
     def setUp(self, debug=False, profile=True):
-        self.nodeLabel = "Tester Node"
-        self.otherNodeLabel = "Testee Node"
-        self.attributeLabel = "Test Attribute"
+        self.nodeLabel = "Tester_Node"
+        self.otherNodeLabel = "Testee_Node"
+        self.attributeLabel = "Test_Attribute"
+        self.attribute2Label = "Test_Attribute_2"
         self.compose1 = "Composed 1"
         self.compose2 = "Composed 2"
         self.composedList = [self.compose1, self.compose2]
+        self.isA1 = "isA 1"
+        self.isA2 = "isA 2"
+        self.isAList = [self.isA1, self.isA2]
         self.attributeLabel_full = f"{self.nodeLabel}.{self.attributeLabel}"
         self.relationLabel = "tests"
         self.fromEdgeLabel = "(1,1)"
@@ -26,9 +30,9 @@ class TestGraphER(Basetest):
         self.relationLabel_full = f"{self.nodeLabel}<->{self.relationLabel}<->{self.otherNodeLabel}"
         self.otherNodeLabelList = [self.otherNodeLabel]
         self.isARelationLabel = f"{self.nodeLabel}.isA.{self.otherNodeLabelList}"
-        self.isAComposedRelationLabel = f"{self.nodeLabel}.isA.{self.composedList}"
-        self.subLabel = 't'
-        self.superLabel = 'p'
+        self.isAComposedRelationLabel = f"{self.nodeLabel}.isA.{self.isAList}"
+        self.subLabel = 'subLabel / t'
+        self.superLabel = 'superLabel / p'
 
         return super().setUp(debug, profile)
 
@@ -84,23 +88,23 @@ class TestGraphER(Basetest):
         g.add_attribute(self.nodeLabel, self.attributeLabel)
         self.assertEqual( 2, g.get_node_count() )
         # the attribute should be called nodeLabel.nodeAttribute
-        self.assertFalse(g.has_node(self.attributeLabel))
-        self.assertTrue(g.has_node(self.attributeLabel_full))
+        self.assertFalse(g.has_attr(self.attributeLabel))
+        self.assertTrue(g.has_attr(self.attributeLabel_full))
  
     def testAddAttributeUnknownNode(self):
         g = ER()
         g.add_attribute(self.nodeLabel, self.attributeLabel)
         self.assertEqual( 2, g.get_node_count() )
-        self.assertFalse(g.has_node(self.attributeLabel))
-        self.assertTrue(g.has_node(self.attributeLabel_full))  
+        self.assertFalse(g.has_attr(self.attributeLabel))
+        self.assertTrue(g.has_attr(self.attributeLabel_full))  
 
     def testAddAttributeCheckParameters(self):
         g = ER()
         g.add_node(self.nodeLabel)
         g.add_attribute(self.nodeLabel, self.attributeLabel, isPK=True, isMultiple=True, isWeak=True)
         self.assertEqual( 2, g.get_node_count() )
-        self.assertFalse(g.has_node(self.attributeLabel))
-        self.assertTrue(g.has_node(self.attributeLabel_full))
+        self.assertFalse(g.has_attr(self.attributeLabel))
+        self.assertTrue(g.has_attr(self.attributeLabel_full))
         
         added_attr = g.get_attr(self.attributeLabel_full)
         debug=self.debug
@@ -114,18 +118,24 @@ class TestGraphER(Basetest):
         self.assertEqual( True, added_attr["isMultiple"] )
 
     def testAddAttributeComposedOf(self):
+        debug = self.debug
+        #debug = True
         g = ER()
         g.add_node(self.nodeLabel)
         g.add_attribute(self.nodeLabel, self.attributeLabel, composedOf=[self.compose1, self.compose2])
         
-        self.assertEqual( 4, g.get_node_count() )
+        self.assertEqual( 4, g.get_node_count() ) # parent, attribute and two composed.
+
+        if debug: g.print_graphml()
+
+        self.assertTrue(g.has_attr(self.attributeLabel_full))
         
         added_attr = g.get_attr(self.attributeLabel_full)
         self.assertTrue( self.compose1 in added_attr["composedOf"] )
         self.assertTrue( self.compose2 in added_attr["composedOf"] )
 
-        self.assertTrue( g.has_node(f"{self.attributeLabel_full}.{self.compose1}") )
-        self.assertTrue( g.has_node(f"{self.attributeLabel_full}.{self.compose2}") )
+        self.assertTrue( g.has_comp_attr(f"{self.attributeLabel_full}.{self.compose1}") )
+        self.assertTrue( g.has_comp_attr(f"{self.attributeLabel_full}.{self.compose2}") )
 
     def testAddRelation(self):
         g = ER()
@@ -145,7 +155,7 @@ class TestGraphER(Basetest):
         g = ER()
         g.add_is_a(self.nodeLabel, self.otherNodeLabel, self.superLabel, self.subLabel, isDisjunct = True)
         added_isA = g.get_isA(self.isARelationLabel)
-        self.assertTrue(g.has_node(self.isARelationLabel))
+        self.assertTrue(g.has_isA(self.isARelationLabel))
         debug=self.debug
         #debug=True
         if debug:
@@ -154,14 +164,14 @@ class TestGraphER(Basetest):
         self.assertEqual(self.superLabel, added_isA["superLabel"])
         self.assertEqual(self.subLabel, added_isA["subLabel"])
         self.assertEqual(True, added_isA["isDisjunct"])
-        self.assertEqual(str(self.otherNodeLabelList), added_isA["subClasses"]) # graph translates params to string
+        self.assertEqual(json.dumps(self.otherNodeLabelList), added_isA["subClasses"]) # graph translates params to string
 
 
     def testAddIsAComposed(self):
         g = ER()
-        g.add_is_a(self.nodeLabel, [self.compose1, self.compose2], self.superLabel, self.subLabel, isDisjunct = True)
+        g.add_is_a(self.nodeLabel, self.isAList, self.superLabel, self.subLabel, isDisjunct = True)
         added_isA = g.get_isA(self.isAComposedRelationLabel)
-        self.assertTrue(g.has_node(self.isAComposedRelationLabel))
+        self.assertTrue(g.has_isA(self.isAComposedRelationLabel))
         debug=self.debug
         #debug=True
         if debug:
@@ -170,7 +180,7 @@ class TestGraphER(Basetest):
         self.assertEqual(self.superLabel, added_isA["superLabel"])
         self.assertEqual(self.subLabel, added_isA["subLabel"])
         self.assertEqual(True, added_isA["isDisjunct"])
-        self.assertEqual(str(self.composedList), added_isA["subClasses"]) # graph translates params to string
+        self.assertEqual(json.dumps(self.isAList), added_isA["subClasses"]) # graph translates params to string
 
     def testAddTernaryRelation(self):
         g = ER()
@@ -262,3 +272,250 @@ class TestGraphER(Basetest):
             print ("> Produzent subtree: ")
             for n in y.nodes(data=True):
                 print([n, g.get_obj(n[0])])
+
+
+    def testExcScoreComparison(self): 
+        '''
+            test ER graph comparison. calculates distance, i.e. points to be deducted
+        '''
+        debug=self.debug
+        #debug=True
+        solution = ER(debug=debug)
+
+        solution.add_node('Hersteller')
+        solution.add_attribute('Hersteller', 'Name', isPK = True)
+        solution.add_attribute('Hersteller', 'Sitz') # 0.25 missing attribute
+        solution.add_node('Käse') # 1p missing node
+
+        compare = ER()
+
+        compare.add_node('Hersteller', isWeak=True) # 0.25 Weak
+        compare.add_attribute('Hersteller', 'Name', isPK = False) # 0.25 PK
+
+        # keep this outside for two reasons:
+        # - security
+        # - reusability, maybe in some tasks we want to grade things differently
+        scores = {
+            'missing_object': 1,
+            'missing_property': {
+                str(NodeType.NODE): 0.5,
+                str(NodeType.ATTRIBUTE): 0.25,
+                str(NodeType.RELATION): 0.5,
+                str(NodeType.IS_A): 0.25
+            }
+        }
+
+        self.assertEqual(2.0, solution.compareGraphs(compare, scores=scores, debug=False))                
+
+    def testAddNodeCopy(self):
+        debug = self.debug
+        #debug = True
+
+        g = ER(debug=debug)
+
+        h = ER(debug=debug)
+        h.add_node(
+            self.nodeLabel, 
+            isWeak=True, 
+            isMultiple=True
+        )
+        h.add_attribute(
+            self.nodeLabel, 
+            self.attributeLabel, 
+            isPK=True, 
+            isMultiple=True, 
+            isWeak=True
+        )
+        h.add_attribute(
+            self.nodeLabel, 
+            self.attribute2Label, 
+            isPK=False, 
+            isMultiple=True, 
+            isWeak=True, 
+            composedOf=self.composedList           
+        )
+        h.add_is_a(
+            self.nodeLabel, 
+            self.isAList, 
+            self.superLabel, 
+            self.subLabel, 
+            isDisjunct = True
+        )
+        h.add_relation(
+            self.nodeLabel, 
+            self.relationLabel, 
+            self.otherNodeLabel, 
+            self.fromEdgeLabel, 
+            self.toEdgeLabel,
+            isWeak=True
+        )
+        
+        g.mergeGraphsWith(h)
+
+        self.assertEqual(True, g.has_node(self.nodeLabel))
+        if debug:
+            print(g.asGraphvizPlaygroundUrl())
+        
+        self.assertEqual(True, g.has_attr(self.attributeLabel_full))
+
+        difference_score = g.compareGraphs(h, scores = g.get_default_scores(), debug=True)
+
+        self.assertEqual(0, difference_score)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    def testEXCa(self):
+        g = ER()
+
+        g.add_node('A')
+
+        ### BEGIN SOLUTION
+
+        g.add_attribute('A', 'A_ID', isPK=True)
+        g.add_attribute('A', 'B')
+        g.add_attribute('A', 'C')
+        g.add_attribute('A', 'D', isMultiple=True)
+
+        h = ER() # test empty solution
+        h.add_node('A')
+
+        scores = {
+            'missing_object': 1,
+            'missing_property': {
+                str(NodeType.NODE): 0.5,
+                str(NodeType.ATTRIBUTE): 0.5,
+                str(NodeType.RELATION): 0.5,
+                str(NodeType.COMPOSED_ATTRIBUTE): 0.125,
+                str(NodeType.IS_A): 0.25
+            }
+        }
+        score_compare  = g.compareGraphs(h, scores=scores, debug = False)
+        #print(score_compare)
+        self.assertEqual(2, score_compare)
+
+    def testEXCb(self):
+
+        g = ER()
+
+        g.add_node('E')
+        g.add_node('F')
+
+        ### BEGIN SOLUTION
+
+        g.add_attribute('F', 'F_ID', isPK=True)
+        g.add_attribute('F', 'G')
+        g.add_attribute('F', 'H')
+        g.add_attribute('F', 'I')
+
+        g.add_relation('E', 'hat', 'F', '1', 'n')
+
+
+        h = ER() # test empty solution
+        h.add_node('E')
+        h.add_node('F')
+
+        #h.add_relation('E', 'hat', 'F', '1', 'm') # n or m doesn't matter.
+        score_compare  = g.compareGraphs(h, debug = True)
+        #print(score_compare)
+        self.assertEqual(2, score_compare)
+
+    def testEXCc(self):
+        g = ER()
+
+        g.add_node('U')
+        g.add_node('V')
+        g.add_node('W')
+
+        ### BEGIN SOLUTION
+        g.add_attribute('W', 'W_ID', isPK = True)
+        g.add_attribute('W', 'A')
+        g.add_attribute('W', 'B')
+        g.add_attribute('W', 'C')
+        g.add_relation('U', 'y', 'W', '1', 'n')
+        g.add_relation('V', 'x', 'U', 'n', 'm')
+        ### END SOLUTION
+
+        h = ER() # test empty solution
+
+        h.add_node('U')
+        h.add_node('V')
+        h.add_node('W')
+
+        #h.add_relation('E', 'hat', 'F', '1', 'm')
+
+        score_compare  = g.compareGraphs(h, debug = True)
+        #print(score_compare)
+        self.assertEqual(3, score_compare)
+    
+    def testEXCd(self):
+        g = ER()
+
+        g.add_node('I')
+        g.add_node('J')
+
+        ### BEGIN SOLUTION
+
+        g.add_node('K', isMultiple = True)
+        g.add_attribute('K', 'K_ID', isPK = True)
+        g.add_attribute('K', 'K2')
+        #g.add_attribute('K', 'K3')
+
+        g.add_attribute('J', 'J1', isPK = True)
+        g.add_attribute('J', 'JC', composedOf = ['JC1', 'JC2'])
+
+        g.add_relation('J', 'sss', 'K', '1', 'n')
+        g.add_relation('J', 'sss', 'I', '1', 'n')
+        g.add_relation('K', 'AA', 'K', '1', 'n')
+        g.add_relation('I', 'eee', 'K', '1', 'n', isWeak = True)
+
+
+        h = ER() # test empty solution
+
+        h.add_node('I')
+        h.add_node('J')
+
+        #h.add_relation('E', 'hat', 'F', '1', 'm')
+
+        score_compare  = g.compareGraphs(h, debug = True)
+        #print(score_compare)
+        self.assertEqual(6, score_compare)
+
+
+    def testEXCe(self):
+        g = ER()
+
+        g.add_node('S')
+
+        ### BEGIN SOLUTION
+
+        g.add_relation('S', 'hat', 'G', '1', 'n')
+        g.add_is_a('G', ['A', 'B', 'C', 'D'], superLabel = 'p', isDisjunct = False)
+
+        h = ER() # test empty solution
+        h.add_node('S')
+
+        scores = {
+            'missing_object': 0.5, # less points for IS-As
+            'missing_property': {
+                str(NodeType.NODE): 0.5,
+                str(NodeType.ATTRIBUTE): 0.5,
+                str(NodeType.RELATION): 0.25,
+                str(NodeType.COMPOSED_ATTRIBUTE): 0.125,
+                str(NodeType.IS_A): 0.25
+            }
+        }
+        score_compare  = g.compareGraphs(h, scores = scores, debug = True)
+        #print(score_compare)
+        self.assertEqual(4, score_compare)

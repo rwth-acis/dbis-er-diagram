@@ -1,9 +1,10 @@
+from erdiagram.NodeType import NodeType
 from graphviz import Digraph
 from IPython.display import display
-from urllib.parse import quote
-import networkx as nx
 from networkx.readwrite import json_graph
-from erdiagram.NodeType import NodeType
+from urllib.parse import quote
+import json
+import networkx as nx
 
 class ER:
     '''
@@ -39,6 +40,17 @@ class ER:
         self.nodes = dict()
         self.nodesInfoDict = dict()
         self.relations = list()
+
+        self.__default_scores = {
+            'missing_object': 1,
+            'missing_property': {
+                str(NodeType.NODE): 0.5,
+                str(NodeType.ATTRIBUTE): 0.25,
+                str(NodeType.RELATION): 0.5,
+                str(NodeType.COMPOSED_ATTRIBUTE): 0.125,
+                str(NodeType.IS_A): 0.25
+            }
+        }
         
     @classmethod
     def copyfrom(cls, diagram, engine='dot', edge_len=1.5, debug=False, graph_attr={}):
@@ -117,7 +129,7 @@ class ER:
             inverseDirection(bool): if "directed" and "inverseDirection" are both true, the arrow is drawn at the "from" end
         '''
         if self.debug: 
-            print(f">> adding edge: {fromNodeLabel} <---[{edgeLabel}]---> {toNodeLabel}")
+            print(f"   >> adding edge: {fromNodeLabel} <---[{edgeLabel}]---> {toNodeLabel}")
         if self.get_graph().has_edge(fromNodeLabel, toNodeLabel) or self.get_graph().has_edge(toNodeLabel, fromNodeLabel) :
             if self.debug:
                 print(f">> trying to add existing edge, nothing to be done.")
@@ -131,6 +143,7 @@ class ER:
         isPK=False, 
         isMultiple=False, 
         isWeak=False, 
+        isComposed=False,
         composedOf=[]):
         '''
         add attribute to graphML graph
@@ -143,17 +156,23 @@ class ER:
             composedOf(list): list of attributes this attribute is built of
         '''
 
-        attrLabel = f'{parentLabel}.{attrLabel}'
+        directLabel = f'{parentLabel}.{attrLabel}'
         if self.debug: 
             print(f">> adding attribute: {attrLabel}")
+        if not isComposed:
+            nodeType = str(NodeType.ATTRIBUTE)
+        else:
+            nodeType = str(NodeType.COMPOSED_ATTRIBUTE)
 
-        self.get_graph().add_node(attrLabel, 
-            label = attrLabel,
+        self.get_graph().add_node(directLabel, 
+            label = directLabel,
+            attrLabel = attrLabel,
+            parentLabel = parentLabel,
             isPK = isPK,
             isMultiple = isMultiple,
             isWeak = isWeak,
-            composedOf = str(composedOf),
-            nodeType= str(NodeType.ATTRIBUTE)
+            composedOf = json.dumps(composedOf),
+            nodeType = nodeType
         )
 
     def __add_graphml_relation(self, label, fromNodeLabel, toNodeLabel, fromEdgeLabel, toEdgeLabel, isWeak=False):
@@ -173,6 +192,7 @@ class ER:
         self.get_graph().add_node(relationLabel, 
             label = relationLabel,
             relation = f"{fromNodeLabel}<-[{fromEdgeLabel}]--[{toEdgeLabel}]->{toNodeLabel}",
+            relationLabel = label,
             relationFrom = fromNodeLabel,
             relationTo = toNodeLabel,
             fromEdgeLabel = fromEdgeLabel,
@@ -187,10 +207,10 @@ class ER:
     def __add_graphml_is_a(self, superClassLabel, superLabel, subLabel, isDisjunct=False, subClasses=[]):
         if isDisjunct:
             isALabel = f"{superClassLabel}.isA.{subClasses}"
-            relation = f"{superClassLabel}->[{superLabel}]->[isA]->[{subLabel}]->{subClasses}",
+            relation = f"{superClassLabel}->[{superLabel}]->[isA]->[{subLabel}]->{subClasses}"
         else:
             isALabel = f"{superClassLabel}.isA.{subClasses}"
-            relation = f"{superClassLabel}<-[{superLabel}]<-[isA]<-[{subLabel}]<-{subClasses}",
+            relation = f"{superClassLabel}<-[{superLabel}]<-[isA]<-[{subLabel}]<-{subClasses}"
         if self.debug: 
             print(f">> adding relation: {isALabel}")
         
@@ -201,7 +221,7 @@ class ER:
             superLabel = superLabel,
             subLabel = subLabel,
             isDisjunct = isDisjunct,
-            subClasses = str(subClasses),
+            subClasses = json.dumps(subClasses),
             nodeType = str(NodeType.IS_A)
         )
 
@@ -330,8 +350,11 @@ class ER:
                 print(f">> node not found, adding {nodeLabel}")
             self.add_node(nodeLabel)
 
+        if isinstance(composedOf, str):
+            composedOf = json.loads(composedOf)
+
         # add new node to graphML graph
-        self.__add_graphml_attr(nodeLabel, attrLabel, isPK, isMultiple, isWeak, composedOf)
+        self.__add_graphml_attr(nodeLabel, attrLabel, isPK, isMultiple = isMultiple, isWeak = isWeak, composedOf = composedOf, isComposed=False)
 
         # add new edge to graphML graph connecting the parent node to this new attribute
         self.__add_graphml_edge(nodeLabel, fullAttrLabel)
@@ -349,10 +372,10 @@ class ER:
             fullSubLabel = f'{nodeLabel}.{attrLabel}.{subAttrLabel}'
             
             if self.debug:
-                print(f">> >> adding sublabel {fullSubLabel} ")
+                print(f"   >> >> adding sublabel {fullSubLabel} ")
 
             # add to graphML graph
-            self.__add_graphml_attr(f'{nodeLabel}.{attrLabel}', subAttrLabel, isPK, isMultiple, isWeak)
+            self.__add_graphml_attr(f'{nodeLabel}.{attrLabel}', subAttrLabel, isPK, isMultiple, isWeak, isComposed=True)
             self.__add_graphml_edge(f'{nodeLabel}.{attrLabel}', fullSubLabel)
 
             # add to graphViz graph
@@ -400,6 +423,7 @@ class ER:
         else:
             subClasses = subclassParam
 
+
         if not self.has_node(superClassLabel):
             self.add_node(superClassLabel)
         for i, subClassLabel in enumerate(subClasses):
@@ -433,40 +457,217 @@ class ER:
     def get_graph(self):
         return self.graph
 
-    def compareNodes(self, otherGraph, label = "", node_type = NodeType.NOT_SPECIFIED, scores={}):
-        dist = 0
+    def get_default_scores(self):
+        return self.__default_scores        
+
+    def _add_obj_node(self, obj):
+        self.add_node(obj['label'], isMultiple = obj['isMultiple'], isWeak = obj['isWeak'])
         if self.debug:
-            print(" ¶ calculating distances between graphs:    ")
-        for n1 in self.get_obj(label, node_type = node_type):
+            print(f"    ✓  added node {obj['label']}:")
+            print(f"       isMultiple = {obj['isMultiple']}, isWeak = {obj['isWeak']}")
+    
+    def _add_obj_attr(self, obj):
+        self.add_attribute(
+            obj['parentLabel'], obj['attrLabel'], 
+            isPK = obj['isPK'], isMultiple = obj['isMultiple'], isWeak = obj['isWeak'], 
+            composedOf = obj['composedOf']
+        )
+        if self.debug:
+            print(f"    ✓  added attribute {obj['attrLabel']} to node {obj['parentLabel']}:")
+            print(f"       isPK = obj['isPK'], isMultiple = {obj['isMultiple']}, isWeak = {obj['isWeak']}, composedOf = {obj['composedOf']}")
+
+    def _add_obj_is_a(self, obj):
+        self.add_is_a(
+            superClassLabel = obj['superClassLabel'], subclassParam = json.loads(obj['subClasses']),
+            superLabel = obj['superLabel'], subLabel = obj['subLabel'], isDisjunct = obj['isDisjunct']
+        )
+        if self.debug:
+            print(f"    ✓  added isA {json.loads(obj['subClasses'])} to super class {obj['superClassLabel']}:")
+            print(f"       superLabel = {obj['superLabel']}, subLabel = {obj['subLabel']}, isDisjunct = {obj['isDisjunct']}")
+
+    def _add_obj_rel(self, obj):
+        self.add_relation(
+            fromNodeLabel=obj['relationFrom'], 
+            relationLabel=obj['relationLabel'], 
+            toNodeLabel=obj['relationTo'], 
+            fromEdgeLabel=obj['fromEdgeLabel'], 
+            toEdgeLabel=obj['toEdgeLabel'], 
+            isWeak=obj['isWeak']
+        )
+        if self.debug:
+            print(f"    ✓  added relation {obj['relationLabel']} between {obj['relationFrom']} and {obj['relationTo']}:")
+            print(f"       fromEdgeLabel = {obj['fromEdgeLabel']}, toEdgeLabel = {obj['toEdgeLabel']}, isWeak = {obj['isWeak']}")
+
+    def __add_obj_copy(self, argument):
+        if self.has_obj(argument['label']):
             if self.debug:
-                print(f" » testing {n1['label']}:")
-            if not otherGraph.has_node(n1["label"]):
-                if self.debug:
-                    print(f"   ✗ {scores['missing_node']:+.2f}, node '{n1['label']}' doesn't exist in other graph")
-                dist += scores['missing_node']
+                print(f" ! trying to add object {argument['label']} of type {argument['nodeType']}, but already exists")
+            return
+        switcher = {
+            str(NodeType.NODE): "_add_obj_node",
+            str(NodeType.ATTRIBUTE): "_add_obj_attr",
+            str(NodeType.IS_A): "_add_obj_is_a",
+            str(NodeType.RELATION): "_add_obj_rel"
+        }
+        function_name = switcher.get(argument['nodeType'], "not found")
+        if function_name == "not found":
+            raise Exception(f"  no adequate function found to add object copy for type {argument['nodeType']}")
+        #if self.debug:
+        #    print(f"    calling function {function_name}() to add object copy of type {argument['nodeType']}")
+        func = getattr(self, function_name, lambda: "Invalid node type")(argument)
+        return func
+
+    def mergeGraphsWith(self, otherGraph):
+        if self.debug:
+            print(" ")
+            print("|-> merging graphs")
+        for n1 in otherGraph.get_obj():
+            if self.has_obj(n1["label"]):
+                continue
             else:
-                # node exists, check equality
-                n2 = otherGraph.get_obj(n1["label"], node_type)
-                if n1 == n2:
-                    if self.debug:
-                        print(f"   ✓  {0:.2f}, match@{n1['label']}")
-                        print(f"   =  {dist:.2f}")
-                    continue
-                distancePerProperty = scores['missing_property'][n1['nodeType']]
-
-                for k, v in n1.items():
-                    if v != n2[k]:
-                        if self.debug:
-                            print(f"   ✗ {distancePerProperty:+.2f}, mismatch@{k}: {v} != {n2[k]} ")
-                        dist += distancePerProperty
-
+                if self.debug:
+                    print(f" >  object '{n1['label']}' doesn't exist in this graph")
+            if (n1['nodeType'] == str(NodeType.COMPOSED_ATTRIBUTE)):
+                if self.debug:
+                    print(f" -> object copy of {NodeType.COMPOSED_ATTRIBUTE}s not supported directly, copy via parent object instead")
+                continue
+            
             if self.debug:
-                print(f"   =  {dist:.2f}")
+                print(f" » checking object '{n1['label']}' of type {n1['nodeType']}")
+            self.__add_obj_copy(n1)
+            if self.debug: print(" ")
 
-        if self.debug:
+    def compareGraphs(self, otherGraph, label = "", node_type = NodeType.NOT_SPECIFIED, scores={}, debug=False):
+        if debug: debugging = True
+        else: debugging = self.debug
+        dist = 0
+        if debugging:
+            print(" ¶ calculating distances between graphs:    ")
+        if scores == {}:
+            if debugging:
+                print("  no scores provided, fallback to default.")
+            scores = self.get_default_scores()
+
+
+        for n1 in self.get_obj(label, node_type = node_type):
+            # ignore attributes, will be checked as part of NodeType.NODE
+            if n1["nodeType"] == str(NodeType.ATTRIBUTE) or n1["nodeType"] == str(NodeType.COMPOSED_ATTRIBUTE):
+                continue
+
+            if debugging:
+                print(f" » testing {n1['label']}:")
+
+            distancePerProperty = scores['missing_property'][n1['nodeType']]
+
+            # check (by label) if object exists in other graph
+            if not otherGraph.has_obj(n1["label"], n1["nodeType"]):
+                # not found.
+                if debugging:
+                    print(f"   ✗ {scores['missing_object']:+.2f}, {n1['nodeType']} '{n1['label']}' doesn't exist in other graph")
+                dist += scores['missing_object']
+
+                # additionally substract points for missing node attributes
+                if n1["nodeType"] == str(NodeType.NODE):
+                    # get all attributes
+                    x = self.get_attr_and_comp(f"{n1['label']}.*")
+                    for y in x:
+                        distancePerProperty = scores['missing_property'][str(NodeType.ATTRIBUTE)]
+                        if debugging:
+                            print(f"   ✗ {distancePerProperty:+.2f}, missing {NodeType.ATTRIBUTE} '{y['label']}' ")
+                        dist += distancePerProperty
+            else:
+                # node exists, check equality and compare
+                if debugging: print(f"   ✓        exists")
+                n2 = otherGraph.get_obj(n1["label"], node_type)
+
+                localDist = self.__compare_nodes(n1, n2, 
+                    scores, otherGraph, debugging)
+
+                dist += localDist
+
+                if debugging:
+                    print(f"   =  {dist:.2f}")
+
+        if debugging:
             print(f" ---------------")
             print(f"   ∑  {dist:.2f}")        
         return dist
+
+    def __compare_properties(self, thisNode, otherNode, key, debugging):
+        #if debugging: 
+        #    print(f"comparing property[{thisNode['label']}.{key}]: {thisNode[key]} vs {otherNode[key]}")
+        thisValue = thisNode[key]
+        otherValue = otherNode[key]
+        
+        # RELATION: don't check "relation" and "relationLabel" strings
+        if thisNode['nodeType'] == str(NodeType.RELATION): 
+            if key == "relation":
+                return True
+            if key == "relationLabel":
+                return True
+        
+        # RELATION: don't differentiate between letters
+        if  (key == "fromEdgeLabel" or key == "toEdgeLabel") and (otherValue.isalpha() and thisValue.isalpha()):
+            #if debugging: 
+            #    print(f"   // ignoring literal mismatch in edge label {thisValue} vs {otherValue}")
+            return True
+        if thisValue != otherValue:
+            if debugging: 
+                print(f"property compare {key} fail {thisValue} vs {otherValue}")
+            return False
+        return True
+
+    def __compare_nodes(self, thisNode, otherNode, 
+                        scores, otherGraph, debugging):
+        #if thisNode['label'] != otherNode['label']:
+        #    if self.debug: print(f"node compare label fail {thisNode['label']} vs {otherNode['label']}")
+        #    return False
+
+        # TODO: refactor these items into separate classes with helper functions
+
+        localDist = 0
+
+        if thisNode["nodeType"] == str(NodeType.NODE):
+            # SPECIAL CASE: NodeType.NODE - compare node attributes
+            nodeAttributes = self.get_attr(f"{thisNode['label']}.*")
+            for localAttr in nodeAttributes:
+                distancePerProperty = scores['missing_property'][str(NodeType.ATTRIBUTE)]
+
+                # is attribute missing?
+                if not otherGraph.has_attr(localAttr['label']):
+                    if debugging:
+                        print(f"   ✗ {distancePerProperty:+.2f}, missing {NodeType.ATTRIBUTE} '{localAttr['label']}' ")
+                    localDist += distancePerProperty
+                else:
+                    # exists but check params (isWeak etc.)
+                    otherAttr = otherGraph.get_attr(localAttr['label'])
+                    for key, value in localAttr.items():
+                        if value != otherAttr[key]:
+                            if debugging:
+                                print(f"   ✗ {distancePerProperty:+.2f}, mismatch@{key}: {value} != {otherAttr[key]} ")
+                            localDist += distancePerProperty
+
+        # compare node properties (isWeak etc.)
+
+        # comparison property keys:
+        if thisNode['nodeType'] == str(NodeType.NODE):
+            propertyKeys = ['isMultiple', 'isWeak']
+        if thisNode['nodeType'] == str(NodeType.ATTRIBUTE) or thisNode['nodeType'] == str(NodeType.COMPOSED_ATTRIBUTE):
+            propertyKeys = ['attrLabel', 'parentLabel', 'isPK', 'isMultiple', 'isWeak', 'composedOf']
+        if thisNode['nodeType'] == str(NodeType.IS_A):
+            propertyKeys = ['relation', 'superClassLabel', 'superLabel', 'subLabel', 'isDisjunct', 'subClasses']
+        if thisNode['nodeType'] == str(NodeType.RELATION):
+            propertyKeys = ['relation', 'relationLabel', 'relationFrom', 'relationTo', 'fromEdgeLabel', 'toEdgeLabel', 'isWeak']
+        distancePerProperty = scores['missing_property'][thisNode['nodeType']]
+        for k in propertyKeys:
+            if not self.__compare_properties(thisNode, otherNode, k, debugging):
+                if debugging:
+                    print(f"   ✗ {distancePerProperty:+.2f}, property mismatch")
+                localDist += distancePerProperty
+            else:
+                continue
+        
+        return localDist
 
     def print_nodes(self):
         if self.debug:
@@ -480,16 +681,22 @@ class ER:
             print(e)
 
     def has_node(self, label):
-        return self.get_graph().has_node(label)
+        return self.has_obj(label, NodeType.NODE)#self.get_graph().has_node(label)
 
     def has_attr(self, label):
         return self.has_obj(label, NodeType.ATTRIBUTE)
+
+    def has_comp_attr(self, label):
+        return self.has_obj(label, NodeType.COMPOSED_ATTRIBUTE)
+
+    def has_attr_or_comp(self, label):
+        return self.has_attr(label) or self.has_comp_attr(label)
 
     def has_rel(self, label):
         return self.has_obj(label, NodeType.RELATION)
 
     def has_isA(self, label):
-        return self.has_obj(label, NodeType.ATTRIBUTE)
+        return self.has_obj(label, NodeType.IS_A)
 
     def has_obj(self, label, node_type=NodeType.NOT_SPECIFIED):
         """"
@@ -505,12 +712,18 @@ class ER:
             If label is empty, gets all objects of this type.
             If node_type is NodeType.NOT_SPECIFIED, gets all objects in graph.
         """
+        if label.endswith(".*"):
+            label = label.partition("*")[0]
         obj_list = []
         for obj in list(self.get_graph().nodes(data=True)):
             if ( node_type == NodeType.NOT_SPECIFIED or obj[1]["nodeType"] == str(node_type) ):
-                if ( label == ""): 
+                if label == "": 
                     obj_list.append(obj[1]) # get all nodes of this type
-                if ( obj[1]["label"] == label ):
+                if label.endswith("."):
+                    #print("wildcard" + label)
+                    if obj[1]["label"].startswith(label):
+                        obj_list.append(obj[1])
+                if obj[1]["label"] == label:
                     return obj[1]
         return obj_list
 
@@ -534,11 +747,27 @@ class ER:
     def get_attr(self, label=""):
         return self.get_obj(label, NodeType.ATTRIBUTE)
 
+    def get_comp_attr(self, label=""):
+        return self.get_obj(label, NodeType.COMPOSED_ATTRIBUTE)
+
+    def get_attr_and_comp(self, label=""):
+        ret_list = []
+        attrs = self.get_obj(label, NodeType.ATTRIBUTE) 
+        comps = self.get_obj(label, NodeType.COMPOSED_ATTRIBUTE)
+        for i in attrs:
+            ret_list.append(i)
+        for i in comps:
+            ret_list.append(i)
+        return ret_list
+
     def get_isA(self, label=""):
         return self.get_obj(label, NodeType.IS_A)
 
     def get_node_count(self):
         return len(self.get_graph().nodes())
+
+    def get_obj_count(self, nodeType = NodeType.NOT_SPECIFIED):
+        return len(self.get_obj("", nodeType))
                     
     def get_graphViz(self):
         return self.graphViz
