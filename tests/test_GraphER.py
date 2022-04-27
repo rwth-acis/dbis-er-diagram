@@ -14,6 +14,7 @@ class TestGraphER(Basetest):
 
     def setUp(self, debug=False, profile=True):
         self.nodeLabel = "Tester_Node"
+        self.nodeLabel2 = "Tester_2_Node"
         self.otherNodeLabel = "Testee_Node"
         self.attributeLabel = "Test_Attribute"
         self.attribute2Label = "Test_Attribute_2"
@@ -27,7 +28,7 @@ class TestGraphER(Basetest):
         self.relationLabel = "tests"
         self.fromEdgeLabel = "(1,1)"
         self.toEdgeLabel = "(1,n)"
-        self.relationLabel_full = f"{self.nodeLabel}<->{self.relationLabel}<->{self.otherNodeLabel}"
+        self.relationLabel_full = f"{self.nodeLabel}-->{self.relationLabel}<--{self.otherNodeLabel}"
         self.otherNodeLabelList = [self.otherNodeLabel]
         self.isARelationLabel = f"{self.nodeLabel}.isA.{self.otherNodeLabelList}"
         self.isAComposedRelationLabel = f"{self.nodeLabel}.isA.{self.isAList}"
@@ -64,6 +65,21 @@ class TestGraphER(Basetest):
         self.assertFalse(g.has_node(self.nodeLabel))
         g.add_node(self.nodeLabel)
         self.assertTrue(g.has_node(self.nodeLabel))
+
+    def testAddNodeEmptyName(self):
+        debug = self.debug
+        debug = True
+        g = ER()
+
+        g.add_node(self.nodeLabel)
+        g.add_node(self.otherNodeLabel)
+        g.add_relation(self.nodeLabel, self.relationLabel, self.otherNodeLabel, self.fromEdgeLabel, self.toEdgeLabel)
+        g.add_attribute("", self.attributeLabel)
+
+        g.add_relation('', self.relationLabel, self.nodeLabel2, '', self.toEdgeLabel)
+
+        self.assertEqual(3, g.get_obj_count(NodeType.NODE))
+
 
     def testAddNodeWeak(self):
         g = ER()
@@ -150,6 +166,25 @@ class TestGraphER(Basetest):
         self.assertEqual(self.otherNodeLabel, added_rel["relationTo"])
         self.assertEqual(self.fromEdgeLabel, added_rel["fromEdgeLabel"])
         self.assertEqual(self.toEdgeLabel, added_rel["toEdgeLabel"])
+
+    def testRelationCompare(self):
+        g = ER(debug=True)
+        #g.add_relation(self.nodeLabel, self.relationLabel, self.otherNodeLabel, self.fromEdgeLabel, self.toEdgeLabel)
+
+        g.add_node('Serie')
+        g.add_node('Bewertung')
+        g.add_relation('Serie', 'hat', 'Bewertung', '1', 'n')
+
+        h = ER(debug=True)
+        #h.add_relation(self.nodeLabel, "Schwachsinn", self.otherNodeLabel, self.fromEdgeLabel, self.toEdgeLabel)
+        h.add_node('Serie')
+        h.add_node('Bewertung')
+        h.add_relation('Serie', 'fsdfsdfsdfsdf', 'Bewertung', '1', 'n')
+
+        score = h.compareGraphs(g, debug = True)
+        self.assertEqual(0, score)
+        #self.assertFalse(True)
+
 
     def testAddIsA(self):
         g = ER()
@@ -374,8 +409,6 @@ class TestGraphER(Basetest):
 
 
 
-
-
     def testEXCa(self):
         g = ER()
 
@@ -501,6 +534,7 @@ class TestGraphER(Basetest):
         ### BEGIN SOLUTION
 
         g.add_relation('S', 'hat', 'G', '1', 'n')
+        g.add_attribute('G', 'G_ID', isPK = True)
         g.add_is_a('G', ['A', 'B', 'C', 'D'], superLabel = 'p', isDisjunct = False)
 
         h = ER() # test empty solution
