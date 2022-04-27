@@ -586,10 +586,19 @@ class ER:
                     print(f"   ✓        exists")
                     #print(["test", n1, n1["nodeType"]])
                     
-                
-                n2 = otherGraph.get_obj(n1["label"], n1["nodeType"])
+                if thisNodeType == str(NodeType.RELATION):
+                    if debugging: print(f"   checking relation for comparison")
+                    
+                    n2 = otherGraph.get_rel_adv(n1)
+                    if debugging: print(f"   found {n2['label']}")
+                    if n2 == False:
+                        if debugging: print(f" cannot get relation {n1['label']} for comparison ")
+                        dist += scores['missing_object']
+                        continue
+                else:
+                    n2 = otherGraph.get_obj(n1["label"], n1["nodeType"])
 
-                localDist = self.__compare_nodes(n1, n2, 
+                localDist = self.__compare_two_nodes(n1, n2, 
                     scores, otherGraph, debugging)
 
                 dist += localDist
@@ -602,7 +611,7 @@ class ER:
             print(f"   ∑  {dist:.2f}")        
         return dist
 
-    def __compare_properties(self, thisNode, otherNode, key, debugging):
+    def __compare_node_properties(self, thisNode, otherNode, key, debugging):
         #if debugging: 
         #    print(f"comparing property[{thisNode.get('label', '')}.{key}]: {thisNode[key]} vs {otherNode[key]}")
         thisValue = thisNode.get(key, "")
@@ -615,18 +624,41 @@ class ER:
             if key == "relationLabel":
                 return True
         
-        # RELATION: don't differentiate between letters
-        if  (key == "fromEdgeLabel" or key == "toEdgeLabel") and (otherValue.isalpha() and thisValue.isalpha()):
-            #if debugging: 
-            #    print(f"   // ignoring literal mismatch in edge label {thisValue} vs {otherValue}")
-            return True
+            # RELATION: don't differentiate between letters
+            if  (key == "fromEdgeLabel" or key == "toEdgeLabel") and (otherValue.isalpha() and thisValue.isalpha()):
+                #if debugging: 
+                #    print(f"   // ignoring literal mismatch in edge label {thisValue} vs {otherValue}")
+                return True
+            
+            if thisValue != otherValue:
+                if debugging: print(f"direct property match {key} fail {thisValue} vs {otherValue}")
+                check = False
+                if key == "relationFrom":
+                    check = (thisNode.get("relationFrom", "") == otherNode.get("relationTo", ""))
+                    if debugging: print(f'({thisNode.get("relationFrom", "")} == {otherNode.get("relationTo", "")})?')
+                if key == "relationTo":
+                    check = (thisNode.get("relationTo", "") == otherNode.get("relationFrom", ""))
+                    if debugging: print(f'({thisNode.get("relationTo", "")} == {otherNode.get("relationFrom", "")})?')
+                if key == "fromEdgeLabel":
+                    check = (thisNode.get("fromEdgeLabel", "") == otherNode.get("toEdgeLabel", ""))
+                    if debugging: print(f'({thisNode.get("fromEdgeLabel", "")} == {otherNode.get("toEdgeLabel", "")})?')
+                if key == "toEdgeLabel":
+                    check = (thisNode.get("toEdgeLabel", "") == otherNode.get("fromEdgeLabel", ""))
+                    if debugging: print(f'({thisNode.get("toEdgeLabel", "")} == {otherNode.get("fromEdgeLabel", "")})?')
+                if not check:
+                    if debugging: print(f"inverse property compare {key} fail {thisValue} vs {otherValue}")
+                    return False
+                else:
+                    return True
+
+            
         if thisValue != otherValue:
             if debugging: 
                 print(f"property compare {key} fail {thisValue} vs {otherValue}")
             return False
         return True
 
-    def __compare_nodes(self, thisNode, otherNode, 
+    def __compare_two_nodes(self, thisNode, otherNode, 
                         scores, otherGraph, debugging):
         #if thisNode.get('label', '') != otherNode.get('label', ''):
         #    if self.debug: print(f"node compare label fail {thisNode.get('label', '')} vs {otherNode.get('label', '')}")
@@ -671,7 +703,7 @@ class ER:
         distancePerProperty = scores['missing_property'][_nodeType]
         for k in propertyKeys:
             #if debugging: print([thisNode, otherNode])
-            if not self.__compare_properties(thisNode, otherNode, k, debugging):
+            if not self.__compare_node_properties(thisNode, otherNode, k, debugging):
                 if debugging:
                     print(f"   ✗ {distancePerProperty:+.2f}, property mismatch")
                 localDist += distancePerProperty
@@ -713,7 +745,7 @@ class ER:
         for otherNode in self.get_obj("", NodeType.RELATION):
             #if self.debug: print(["testing for ", otherNode])
             for k in propertyKeys:
-                if self.__compare_properties(thisNode, otherNode, k, self.debug):
+                if self.__compare_node_properties(thisNode, otherNode, k, self.debug):
                     return True
                 else:
                     continue
@@ -751,7 +783,7 @@ class ER:
                     obj_list.append(potentialNode) # get all nodes of this type
                     continue
                 if label.endswith("."):
-                    if self.debug: print("wildcard " + label + ".*")
+                    #if self.debug: print("wildcard search" + label + "*")
                     if obj_label.startswith(label):
                         obj_list.append(potentialNode)
                     continue
@@ -788,6 +820,23 @@ class ER:
 
     def get_rel(self, label=""):
         return self.get_obj(label, NodeType.RELATION)
+
+    def get_rel_adv(self, thisNode):
+        propertyKeys = ['relationFrom', 'relationTo', 'fromEdgeLabel', 'toEdgeLabel', 'isWeak']
+        #if self.debug: print([f"testing relation (found {len(self.get_obj("", NodeType.RELATION))} others), this: ", thisNode])
+        for otherNode in self.get_obj("", NodeType.RELATION):
+            #if self.debug: print(["testing relation, other: ", otherNode])
+            propertyTestCount = 0
+            for k in propertyKeys:
+                propertyTest = self.__compare_node_properties(thisNode, otherNode, k, self.debug)
+                #if self.debug: print(f"testing property {k}, mismatch? {propertyTest}")
+                if propertyTest:
+                    propertyTestCount += 1
+                else:
+                    continue
+            if propertyTestCount == len(propertyKeys):
+                return otherNode
+        return False        
 
     def get_attr(self, label=""):
         return self.get_obj(label, NodeType.ATTRIBUTE)

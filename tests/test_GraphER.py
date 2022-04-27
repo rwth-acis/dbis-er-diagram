@@ -171,15 +171,15 @@ class TestGraphER(Basetest):
         g = ER(debug=True)
         #g.add_relation(self.nodeLabel, self.relationLabel, self.otherNodeLabel, self.fromEdgeLabel, self.toEdgeLabel)
 
-        g.add_node('Serie')
+        g.add_node('S')
         g.add_node('Bewertung')
-        g.add_relation('Serie', 'hat', 'Bewertung', '1', 'n')
+        g.add_relation('S', 'hat', 'Bewertung', '1', 'n')
 
         h = ER(debug=True)
         #h.add_relation(self.nodeLabel, "Schwachsinn", self.otherNodeLabel, self.fromEdgeLabel, self.toEdgeLabel)
-        h.add_node('Serie')
+        h.add_node('S')
         h.add_node('Bewertung')
-        h.add_relation('Serie', 'fsdfsdfsdfsdf', 'Bewertung', '1', 'n')
+        h.add_relation('S', 'fsdfsdfsdfsdf', 'Bewertung', '1', 'n')
 
         score = h.compareGraphs(g, debug = True)
         self.assertEqual(0, score)
@@ -553,3 +553,37 @@ class TestGraphER(Basetest):
         score_compare  = g.compareGraphs(h, scores = scores, debug = True)
         #print(score_compare)
         self.assertEqual(4, score_compare)
+
+    def testXX(self):
+        g = ER(debug=True)
+        g.add_node('S')
+        g.add_node('B')
+        g.add_node('E')
+
+        g.add_relation('S', 'b','E','1', 'n')
+        g.add_attribute('E','E_ID', isPK=True)
+        g.add_attribute('E','t')
+        g.add_attribute('E','d')
+        g.add_attribute('E','k')
+
+        g.add_relation('E','s','B','m','n')
+
+        h = ER(debug=True) # test empty solution
+        h.add_node('S')
+        h.add_node('B')
+        h.add_node('E')
+        h.add_attribute('E', 'E_ID', isPK = True)
+        h.add_attribute('E', 't')
+        h.add_attribute('E', 'd')
+        h.add_attribute('E', 'k')
+        h.add_relation('S', 'b', 'E', '1', 'n')
+        h.add_relation('B', 'sfsdf', 'E', 'n', 'm')
+
+        score_compare  = h.compareGraphs(g, debug = True)
+        maxPoints = 3
+
+        score = min( maxPoints, max( 0, round( maxPoints - score_compare, 2 ) ) )
+        print("------------------")
+        print(f"score: {3} - {score_compare} = {score}")
+
+        self.assertEqual(3, score)
