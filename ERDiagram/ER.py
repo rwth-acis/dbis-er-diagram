@@ -587,10 +587,10 @@ class ER:
                     #print(["test", n1, n1["nodeType"]])
                     
                 if thisNodeType == str(NodeType.RELATION):
-                    if debugging: print(f"   checking relation for comparison")
+                    #if debugging: print(f"   checking relation for comparison")
                     
                     n2 = otherGraph.get_rel_adv(n1)
-                    if debugging: print(f"   found {n2['label']}")
+                    #if debugging: print(f"   found {n2['label']}")
                     if n2 == False:
                         if debugging: print(f" cannot get relation {n1['label']} for comparison ")
                         dist += scores['missing_object']
@@ -631,22 +631,22 @@ class ER:
                 return True
             
             if thisValue != otherValue:
-                if debugging: print(f"direct property match {key} fail {thisValue} vs {otherValue}")
+                #if debugging: print(f"direct property match {key} fail {thisValue} vs {otherValue}")
                 check = False
                 if key == "relationFrom":
                     check = (thisNode.get("relationFrom", "") == otherNode.get("relationTo", ""))
-                    if debugging: print(f'({thisNode.get("relationFrom", "")} == {otherNode.get("relationTo", "")})?')
+                    #if debugging: print(f'({thisNode.get("relationFrom", "")} == {otherNode.get("relationTo", "")})?')
                 if key == "relationTo":
                     check = (thisNode.get("relationTo", "") == otherNode.get("relationFrom", ""))
-                    if debugging: print(f'({thisNode.get("relationTo", "")} == {otherNode.get("relationFrom", "")})?')
+                    #if debugging: print(f'({thisNode.get("relationTo", "")} == {otherNode.get("relationFrom", "")})?')
                 if key == "fromEdgeLabel":
                     check = (thisNode.get("fromEdgeLabel", "") == otherNode.get("toEdgeLabel", ""))
-                    if debugging: print(f'({thisNode.get("fromEdgeLabel", "")} == {otherNode.get("toEdgeLabel", "")})?')
+                    #if debugging: print(f'({thisNode.get("fromEdgeLabel", "")} == {otherNode.get("toEdgeLabel", "")})?')
                 if key == "toEdgeLabel":
                     check = (thisNode.get("toEdgeLabel", "") == otherNode.get("fromEdgeLabel", ""))
-                    if debugging: print(f'({thisNode.get("toEdgeLabel", "")} == {otherNode.get("fromEdgeLabel", "")})?')
+                    #if debugging: print(f'({thisNode.get("toEdgeLabel", "")} == {otherNode.get("fromEdgeLabel", "")})?')
                 if not check:
-                    if debugging: print(f"inverse property compare {key} fail {thisValue} vs {otherValue}")
+                    #if debugging: print(f"inverse property compare {key} fail {thisValue} vs {otherValue}")
                     return False
                 else:
                     return True

@@ -500,7 +500,8 @@ class TestGraphER(Basetest):
 
         ### BEGIN SOLUTION
 
-        g.add_node('K', isMultiple = True)
+        g.add_node('K', isWeak = True)
+        
         g.add_attribute('K', 'K_ID', isPK = True)
         g.add_attribute('K', 'K2')
         #g.add_attribute('K', 'K3')
