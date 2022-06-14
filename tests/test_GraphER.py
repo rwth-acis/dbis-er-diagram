@@ -567,7 +567,7 @@ class TestGraphER(Basetest):
         g.add_attribute('E','d')
         g.add_attribute('E','k')
 
-        g.add_relation('E','s','B','m','n')
+        g.add_relation('E','s','B','  m  ','  n  ') # Test spaces in cardinalities
 
         h = ER(debug=True) # test empty solution
         h.add_node('S')
@@ -588,3 +588,11 @@ class TestGraphER(Basetest):
         print(f"score: {3} - {score_compare} = {score}")
 
         self.assertEqual(3, score)
+
+    def testIsAGrading(self):
+        g = ER(debug=True)
+        g.add_is_a("A", ["B", "C", "D"], "t", True)
+        h = ER(debug=True)
+        g.add_is_a("A", ["C", "D", "B"], "t", True)
+        self.assertEqual(0, h.compareGraphs(g, debug = True))
+        
