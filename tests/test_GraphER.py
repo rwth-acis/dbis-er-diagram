@@ -593,6 +593,6 @@ class TestGraphER(Basetest):
         g = ER(debug=True)
         g.add_is_a("A", ["B", "C", "D"], "t", True)
         h = ER(debug=True)
-        g.add_is_a("A", ["C", "D", "B"], "t", True)
+        h.add_is_a("A", ["C", "D", "B"], "t", True)
         self.assertEqual(0, h.compareGraphs(g, debug = True))
         
