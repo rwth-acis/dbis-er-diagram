@@ -388,8 +388,8 @@ class ER:
             fromNodeLabel(str): Label of the "from" node
             relationLabel(str): Label of the relation
             toNodeLabel(str): Label of the "to" node
-            fromEdgeLabel(str): Label on the "from" edge
-            toEdgeLabel(str): Label on the "to" edge
+            fromEdgeLabel(str): Label/cardinality on the "from" edge
+            toEdgeLabel(str): Label/cardinality on the "to" edge
             isWeak(bool): is this a weak relation?
         '''
         if fromNodeLabel != '' and not self.has_node(fromNodeLabel):
@@ -401,11 +401,11 @@ class ER:
                 print(f">> toNode missing, adding {toNodeLabel}")
             self.add_node(toNodeLabel, isWeak=isWeak)
 
-        self.__add_graphml_relation(relationLabel, fromNodeLabel, toNodeLabel, fromEdgeLabel, toEdgeLabel, isWeak)
+        self.__add_graphml_relation(relationLabel, fromNodeLabel, toNodeLabel, fromEdgeLabel.replace(" ", ""), toEdgeLabel.replace(" ", ""), isWeak)
 
         # TODO: refactor this to .render() function
         # Add a relation between two nodes - a red rhombus
-        self.__add_graphviz_relation(relationLabel, fromNodeLabel, toNodeLabel, fromEdgeLabel, toEdgeLabel, isWeak)
+        self.__add_graphviz_relation(relationLabel, fromNodeLabel, toNodeLabel, fromEdgeLabel.replace(" ", ""), toEdgeLabel.replace(" ", ""), isWeak)
 
     def add_is_a(self, superClassLabel, subclassParam, superLabel='', subLabel='', isDisjunct=True):
         '''
@@ -423,6 +423,8 @@ class ER:
         else:
             subClasses = subclassParam
 
+        if subClasses is not None:
+            subClasses.sort()
 
         if not self.has_node(superClassLabel):
             self.add_node(superClassLabel)
@@ -645,6 +647,13 @@ class ER:
                 if key == "toEdgeLabel":
                     check = (thisNode.get("toEdgeLabel", "") == otherNode.get("fromEdgeLabel", ""))
                     #if debugging: print(f'({thisNode.get("toEdgeLabel", "")} == {otherNode.get("fromEdgeLabel", "")})?')
+                if key == "subClasses":
+                    thisSubClasses = thisNode.get("subClasses", [])
+                    otherSubClasses = otherNode.get("subClasses", [])
+                    if isinstance(thisSubClasses, list): thisSubClasses = thisSubClasses.sort()
+                    if isinstance(otherSubClasses, list): otherSubClasses = otherSubClasses.sort()
+                    check = (thisSubClasses == otherSubClasses)
+                    if debugging: print(f'({thisNode.get("subClasses", "")} == {otherNode.get("subClasses", "")})?')
                 if not check:
                     #if debugging: print(f"inverse property compare {key} fail {thisValue} vs {otherValue}")
                     return False

@@ -555,29 +555,21 @@ class TestGraphER(Basetest):
         #print(score_compare)
         self.assertEqual(4, score_compare)
 
-    def testXX(self):
+    def testSpacesInCardinalities(self):
         g = ER(debug=True)
         g.add_node('S')
         g.add_node('B')
         g.add_node('E')
-
         g.add_relation('S', 'b','E','1', 'n')
-        g.add_attribute('E','E_ID', isPK=True)
-        g.add_attribute('E','t')
-        g.add_attribute('E','d')
-        g.add_attribute('E','k')
-
-        g.add_relation('E','s','B','  m  ','  n  ') # Test spaces in cardinalities
+        g.add_relation('S', 'b','F','(1, 1)', '(1, n)')
+        g.add_relation('E','sfsdf','B','  m  ','  n  ')
 
         h = ER(debug=True) # test empty solution
         h.add_node('S')
         h.add_node('B')
         h.add_node('E')
-        h.add_attribute('E', 'E_ID', isPK = True)
-        h.add_attribute('E', 't')
-        h.add_attribute('E', 'd')
-        h.add_attribute('E', 'k')
-        h.add_relation('S', 'b', 'E', '1', 'n')
+        h.add_relation('S', 'b', 'E', '1 ', 'n ')
+        h.add_relation('S', 'b', 'F', '(1,1)', '(1,n)')
         h.add_relation('B', 'sfsdf', 'E', 'n', 'm')
 
         score_compare  = h.compareGraphs(g, debug = True)
@@ -591,8 +583,8 @@ class TestGraphER(Basetest):
 
     def testIsAGrading(self):
         g = ER(debug=True)
-        g.add_is_a("A", ["B", "C", "D"], "t", True)
+        g.add_is_a("A", ["B", "C", "D"], "t", isDisjunct = True)
         h = ER(debug=True)
-        h.add_is_a("A", ["C", "D", "B"], "t", True)
+        h.add_is_a("A", ["C", "D", "B"], "t", isDisjunct = True)
         self.assertEqual(0, h.compareGraphs(g, debug = True))
         
