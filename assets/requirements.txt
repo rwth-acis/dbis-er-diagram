@@ -5,4 +5,4 @@ ipython
 # https://pypi.org/project/networkx/
 networkx~=2.7.1
 # https://pypi.org/project/dbis-exc-manager/
-dbis-exc-manager~=0.2.3
+dbis-exc-manager~=0.2.4
