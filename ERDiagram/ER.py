@@ -5,6 +5,7 @@ from networkx.readwrite import json_graph
 from urllib.parse import quote
 import json
 import networkx as nx
+from excmanager.Util import Util
 
 class ER:
     '''
@@ -652,8 +653,9 @@ class ER:
                     otherSubClasses = otherNode.get("subClasses", [])
                     if isinstance(thisSubClasses, list): thisSubClasses = thisSubClasses.sort()
                     if isinstance(otherSubClasses, list): otherSubClasses = otherSubClasses.sort()
-                    check = (thisSubClasses == otherSubClasses)
-                    if debugging: print(f'({thisNode.get("subClasses", "")} == {otherNode.get("subClasses", "")})?')
+                    check = (0.8 <= Util.levenshtein_list_callback(thisSubClasses, otherSubClasses))#(thisSubClasses == otherSubClasses)
+                    if self.debug: 
+                        print(f'({thisNode.get("subClasses", "")} vs. {otherNode.get("subClasses", "")}) @ {check*100:.2f}%')
                 if not check:
                     #if debugging: print(f"inverse property compare {key} fail {thisValue} vs {otherValue}")
                     return False
@@ -661,9 +663,11 @@ class ER:
                     return True
 
             
-        if thisValue != otherValue:
+        #if thisValue != otherValue:
+        levens_check = Util.levenshtein_str_callback(thisValue, otherValue)
+        if 0.8 >= levens_check:
             if debugging: 
-                print(f"property compare {key} fail {thisValue} vs {otherValue}")
+                print(f"property compare {key} fail {thisValue} vs {otherValue} @ {levens_check*100:.2f}")
             return False
         return True
 
@@ -692,7 +696,9 @@ class ER:
                     # exists but check params (isWeak etc.)
                     otherAttr = otherGraph.get_attr(localAttr.get('label', ''))
                     for key, value in localAttr.items():
-                        if value != otherAttr[key]:
+                        compare = Util.levenshtein_str_callback(value, otherAttr[key])
+                        if compare < 0.8:
+                            if (self.debug): print(f"compare attrs: '{value}' with '{otherAttr[key]}' @ {compare*100:.2f}%")
                             if debugging:
                                 print(f"   ✗ {distancePerProperty:+.2f}, mismatch@{key}: {value} != {otherAttr[key]} ")
                             localDist += distancePerProperty
@@ -806,10 +812,13 @@ class ER:
                     block, bracket, right = rest.partition("<--")
                     new_obj_label = left + right
                     #if self.debug: print(["checking", new_label, new_obj_label])
+                    #if new_label == new_obj_label:
                     if new_label == new_obj_label:
                         return potentialNode
 
-                if obj_label == label:
+                compare = Util.levenshtein_str_callback(obj_label, label)
+                #if (self.debug): print(f"compare labels: '{obj_label}' with '{label}' @ {compare*100:.2f}%")
+                if compare >= 0.92: # obj_label == label:
                     return potentialNode
         return obj_list
 

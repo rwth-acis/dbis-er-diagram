@@ -69,7 +69,7 @@ class TestGraphER(Basetest):
     def testAddNodeEmptyName(self):
         debug = self.debug
         debug = True
-        g = ER()
+        g = ER(debug=True)
 
         g.add_node(self.nodeLabel)
         g.add_node(self.otherNodeLabel)
@@ -180,6 +180,26 @@ class TestGraphER(Basetest):
         h.add_node('S')
         h.add_node('Bewertung')
         h.add_relation('S', 'fsdfsdfsdfsdf', 'Bewertung', '1', 'n')
+
+        score = h.compareGraphs(g, debug = True)
+        self.assertEqual(0, score)
+        #self.assertFalse(True)
+
+    def testLevenstheinCompare(self):
+        g = ER(debug=True)
+        #g.add_relation(self.nodeLabel, self.relationLabel, self.otherNodeLabel, self.fromEdgeLabel, self.toEdgeLabel)
+
+        g.add_is_a('A', ["Bewertung", "Schule"])
+        g.add_attribute('Episode', 'Titel')
+        g.add_attribute('Episode', 'Bewertung_ID')
+        g.add_node("Bewertung")
+
+        h = ER(debug=True)
+        #h.add_relation(self.nodeLabel, "Schwachsinn", self.otherNodeLabel, self.fromEdgeLabel, self.toEdgeLabel)
+        h.add_attribute('Episode', 'Title')
+        h.add_attribute('Episode', 'Bewertungs_ID')
+        h.add_node("Bewertungs"),
+        h.add_is_a('A', ["Bewertungs", "Schuule"])
 
         score = h.compareGraphs(g, debug = True)
         self.assertEqual(0, score)
